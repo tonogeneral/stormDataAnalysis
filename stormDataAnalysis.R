@@ -7,14 +7,17 @@
 
 url = "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
 dataDir = "./data"
+dataFile = "./data/StormData.csv.bz2"
 DataFN ="StormData.csv.bz2"
 
-if (!file.exists(dataDir)) {
+if (!file.exists(dataDir) || (!file.exists(dataFile))) {
   dir.create(dataDir)
   download.file(url, destfile = "./data/StormData.csv.bz2")
-  stormData <- read.csv("./data/StormData.csv.bz2")
   #unzip(zipfile = DataFileName, exdir = dataDir)
 }
+
+
+stormData <- read.csv("./data/StormData.csv.bz2")
 
 
 library(dplyr)
@@ -27,12 +30,37 @@ head(stormData)
 # sum(is.na(stormData))
 
 
-stormData$BGN_DATE<- format(as.POSIXct(stormData$BGN_DATE,format='%m/%d/%Y %H:%M:%S'),format='%m/%d/%Y')
+
+
+
+
+
+
 
 #stormData1 <-stormData[!complete.cases(stormData),]
 # Subsetting dataset with useful columns
 dataDMN <- subset(stormData, FATALITIES + INJURIES >0, select = c(STATE,BGN_DATE,COUNTYNAME,STATE,EVTYPE,FATALITIES,INJURIES,PROPDMG))
+
+
+
+#dataDMN$BGN_DATE <- format(as.POSIXct(dataDMN$BGN_DATE,format='%m/%d/%Y %H:%M:%S'),format='%m/%d/%Y')
+
+sapply(dataDMN, function(x) sum(is.na(x)))
+nrow(dataDMN)
+# We've got 27 NA values from 21929 in field BGN_DATE, representing a 0,12% of missing values from most harmful events respect to population health
+
+dataDMN <- na.omit(dataDMN)
+
+
+
+
 dataDMG <- subset(stormData, PROPDMG >0, select = c(STATE,BGN_DATE,COUNTYNAME,STATE,EVTYPE,FATALITIES,INJURIES,PROPDMG))
+nrow(dataDMG)
+sapply(dataDMG, function(x) sum(is.na(x)))
+dataDMG <- na.omit(dataDMG)
+## We've got 252 NA values of 239174 in field BGN_DATE, representing a 0,10% of missing values from greatest economy consequences events.
+
+
 
 #dataDMN$BGN_DATE<- format(as.POSIXct(dataDMN$BGN_DATE,format='%m/%d/%Y %H:%M:%S'),format='%m/%d/%Y')
 
@@ -57,11 +85,13 @@ econ <- dataDMG %>%
 
 
 ggplot(danger, aes(EVTYPE, DAMN)) + 
-  geom_bar(stat="identity") +
+  ggtitle("Most harmful weather events in US") +
+  geom_bar(stat="identity", fill = "#FF6666") +
   theme(axis.text.x = element_text(angle=45, hjust=1, vjust = 1))
 
 
 ggplot(econ, aes(EVTYPE, DMG)) + 
-  geom_bar(stat="identity") +
+  ggtitle("Weather events with major economic consequences in US") +
+  geom_bar(stat="identity", fill = "#FF6666") +
   theme(axis.text.x = element_text(angle=45, hjust=1, vjust = 1))
 
