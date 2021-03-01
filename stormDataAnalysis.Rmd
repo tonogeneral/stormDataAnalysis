@@ -1,0 +1,202 @@
+---
+title: "Analysis of effects in human health and property damage of major weather events in US"
+author: "Gabriel General"
+date: "25-02-2021"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# SYNOPSIS
+
+
+## Analysis of NOAA Storm Database to study the damage of climatic events.
+
+Many severe weather events can result in human casualties, injuries and property damage and knowing this phenomena can help us to take actions and prevent significant damage to human and property.
+
+Due this, is needed study and analyze the history and data recorded.
+
+This is an analysis of the NOAA Storm Database about severe weather events recorded from 1950 to November 2011. 
+
+
+
+# DATA PROCESSING
+
+## 1. Getting the data from the National Weather Service
+First we set all the parameters needed to get the data file:
+
+
+
+```{r dataGet, echo=TRUE, cache=TRUE}
+
+
+url = "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+dataDir = "./data"
+dataFile = "./data/StormData.csv.bz2"
+DataFN ="StormData.csv.bz2"
+
+if (!file.exists(dataDir) || (!file.exists(dataFile))) {
+  dir.create(dataDir)
+  download.file(url, destfile = "./data/StormData.csv.bz2")
+  #unzip(zipfile = DataFileName, exdir = dataDir)
+}
+
+
+
+
+```
+
+
+## 2. Create a dataset with the data obtained and count the number of NA values.
+
+```{r dataset, echo=TRUE, cache=TRUE}
+
+ stormData <- read.csv("./data/StormData.csv.bz2")
+ naValues <- as.numeric(sum(is.na(stormData)))
+ validValues <- as.numeric(sum(!is.na(stormData)))
+ perNaValues <- round((naValues*100)/validValues,2)
+ #perNaValues <- format(round(naValues, 2), nsmall = 2)
+
+```
+We observe that exist a **`r perNaValues`%** of data missed from original dataset.
+
+# Columns with invalid data are:
+
+
+```{r colNA, echo=TRUE, cache=TRUE}
+sapply(stormData, function(x) sum(is.na(x)))
+
+```
+
+
+# 3. A strategy taken to filter the invalid data was subsetting the original dataset creating two new dataset only with useful data. 
+
+
+## 3.1 Human casualties: Data in those rows contains at least 1 record with fatalities or injuries called dataDMN
+
+```{r humanCasualties, echo=TRUE, cache=TRUE}
+dataDMN <- subset(stormData, FATALITIES + INJURIES >0, select = c(STATE,BGN_DATE,COUNTYNAME,STATE,EVTYPE,FATALITIES,INJURIES,PROPDMG))
+numHuman <- round(as.numeric(nrow(dataDMN)))
+naDataDMN <- sum(is.na(dataDMN))
+
+
+```
+
+We've got **`r numHuman`** records with human casualties and have **NONE** registry with invalid values.
+
+
+
+
+## 3.2 Property Damage: Data with property damage (in Dollars) called DataDMG
+
+```{r propDamage, echo=TRUE, cache=TRUE}
+dataDMG <- subset(stormData, PROPDMG >0, select = c(STATE,BGN_DATE,COUNTYNAME,STATE,EVTYPE,FATALITIES,INJURIES,PROPDMG,PROPDMGEXP))
+numPropDMG <- as.numeric(nrow(dataDMG))
+naDataDMG <- sum(is.na(dataDMG))
+
+
+```
+
+We've got **`r numPropDMG`** records with economic consequences and have **NONE** registry with invalid values.
+
+
+
+Invalid data filtering was not necessary because the casualties and property damage preconditions cleaned up the original dataset.
+
+
+For example, columns with NA values such as COUNTYENDN, F, or LATTITUDE were unnecessary to answer the main questions in this analysis.
+
+
+
+This strategy help us to save a lot of time in data pre-processing and memory resources.
+
+
+
+# **RESULTS**
+
+## Using librarys tidyr and ggplot2 we can identify the most dangerous events.
+```{r lib, echo=TRUE, cache= TRUE}
+library(dplyr)
+library(ggplot2)
+```
+
+**Most harmful weather events in US**
+
+
+```{r harmful, echo=TRUE, cache= TRUE}
+
+human <- dataDMN %>%
+  group_by(EVTYPE) %>%
+  summarise(DAMN = sum(INJURIES+FATALITIES)) %>%
+  top_n(5) %>%
+  arrange(desc(DAMN))
+
+
+```
+
+#The top 5 of most harmful event are:
+```{r human, echo=FALSE, cache= TRUE}
+
+human <- arrange(human,desc(DAMN))
+human
+
+ggplot(human, aes(EVTYPE, DAMN)) + 
+  ggtitle("Most harmful weather events in US") +
+  geom_bar(stat="identity", fill = "#FF6666") +
+  xlab("Weather event") + 
+  ylab("Casualties (Fatalities and Injuries)") +
+  theme(axis.text.x = element_text(angle=45, hjust=1, vjust = 1))
+
+```
+
+The most harmful weather event in US are **tornadoes** , with more than **90 thousands casualties** between deaths and injuries by far.
+
+
+**Weather events with major economic consequences in US**
+
+Property damage is classified by column PROPDMGEXP that indicates if value is represented in thousand (K) or million of dollars (M).
+So, to summarize this we must grouping by value expression an then sum by total.
+
+```{r prop, echo=TRUE, cache= TRUE}
+
+miles <- dataDMG %>%
+  filter(PROPDMGEXP == "K") %>%
+  group_by(EVTYPE) %>%
+  summarise(DMG = sum(PROPDMG)/1000)
+
+millones <- dataDMG %>%
+  filter(PROPDMGEXP == "M") %>%
+  group_by(EVTYPE) %>%
+  summarise(DMG = sum(PROPDMG))
+
+
+econ <- bind_rows(miles, millones) %>%
+  group_by(EVTYPE) %>%
+  summarise_all(funs(sum(., na.rm = TRUE))) %>%
+  top_n(5)
+
+```
+
+#The top 5 of event with major economic consequences in US:
+```{r econ, echo=FALSE, cache= TRUE}
+
+econ <- arrange(econ,desc(DMG))
+econ
+
+ggplot(econ, aes(EVTYPE, DMG)) + 
+  ggtitle("Weather events with major economic consequences in US") +
+  geom_bar(stat="identity", fill = "#FF6666") +
+  xlab("Weather event") + 
+  ylab("Damage (in millions of dollars)") +
+  theme(axis.text.x = element_text(angle=45, hjust=1, vjust = 1))
+
+```
+We can see that the climate event with the greatest economic consequences are  
+**tornadoes**, with more than **50 billion dollars** in damages, followed by floods, hail and hurricanes.
+A strategy to prevent more damage in the states most prone to this climate phenomenon, would be to develop forecasting systems and improve communications and coordinated measures to avoid more human and economic damage.
+
