@@ -19,6 +19,8 @@ if (!file.exists(dataDir) || (!file.exists(dataFile))) {
 
 stormData <- read.csv("./data/StormData.csv.bz2")
 
+sapply(stormData, function(x) sum(is.na(x)))
+
 
 library(dplyr)
 library(ggplot2)
@@ -54,7 +56,7 @@ dataDMN <- na.omit(dataDMN)
 
 
 
-dataDMG <- subset(stormData, PROPDMG >0, select = c(STATE,BGN_DATE,COUNTYNAME,STATE,EVTYPE,FATALITIES,INJURIES,PROPDMG))
+dataDMG <- subset(stormData, PROPDMG >0, select = c(STATE,BGN_DATE,COUNTYNAME,STATE,EVTYPE,FATALITIES,INJURIES,PROPDMG,PROPDMGEXP))
 nrow(dataDMG)
 sapply(dataDMG, function(x) sum(is.na(x)))
 dataDMG <- na.omit(dataDMG)
@@ -73,18 +75,30 @@ tail(dataDMN)
 
 
 
-danger <- dataDMN %>%
+human <- dataDMN %>%
   group_by(EVTYPE) %>%
   summarise(DAMN = sum(INJURIES+FATALITIES)) %>%
   top_n(5)
 
-econ <- dataDMG %>%
+miles <- dataDMG %>%
+  filter(PROPDMGEXP == "K") %>%
   group_by(EVTYPE) %>%
-  summarise(DMG = sum(PROPDMG)) %>%
-  top_n(5)
+  summarise(DMG_m = sum(PROPDMG)/1000)
+
+millones <- dataDMG %>%
+  filter(PROPDMGEXP == "M") %>%
+  group_by(EVTYPE) %>%
+  summarise(DMG_m = sum(PROPDMG))
+
+econ <- bind_rows(miles, millones) %>%
+  group_by(EVTYPE) %>%
+  summarise_all(funs(sum(., na.rm = TRUE))) %>%
+  top_n(5) %>%
+  arrange(desc(DMG))
 
 
-ggplot(danger, aes(EVTYPE, DAMN)) + 
+
+ggplot(human, aes(EVTYPE, DAMN)) + 
   ggtitle("Most harmful weather events in US") +
   geom_bar(stat="identity", fill = "#FF6666") +
   theme(axis.text.x = element_text(angle=45, hjust=1, vjust = 1))
