@@ -1,7 +1,7 @@
 ---
 title: "Analysis of effects in human health and property damage of major weather events in US"
 author: "Gabriel General"
-date: "25-02-2021"
+date: "01-03-2021"
 output:
   pdf_document: default
   html_document:
@@ -132,9 +132,9 @@ library(ggplot2)
 
 human <- dataDMN %>%
   group_by(EVTYPE) %>%
-  summarise(DAMN = sum(INJURIES+FATALITIES)) %>%
+  summarise(CASUALTIES = sum(INJURIES+FATALITIES)) %>%
   top_n(5) %>%
-  arrange(desc(DAMN))
+  arrange(desc(CASUALTIES))
 
 
 ```
@@ -142,10 +142,10 @@ human <- dataDMN %>%
 #The top 5 of most harmful event are:
 ```{r human, echo=FALSE, cache= TRUE}
 
-human <- arrange(human,desc(DAMN))
+human <- arrange(human,desc(CASUALTIES))
 human
 
-ggplot(human, aes(EVTYPE, DAMN)) + 
+ggplot(human, aes(EVTYPE, CASUALTIES)) + 
   ggtitle("Most harmful weather events in US") +
   geom_bar(stat="identity", fill = "#FF6666") +
   xlab("Weather event") + 
@@ -167,12 +167,12 @@ So, to summarize this we must grouping by value expression an then sum by total.
 miles <- dataDMG %>%
   filter(PROPDMGEXP == "K") %>%
   group_by(EVTYPE) %>%
-  summarise(DMG = sum(PROPDMG)/1000)
+  summarise(DAMAGE = sum(PROPDMG)/1000)
 
 millones <- dataDMG %>%
   filter(PROPDMGEXP == "M") %>%
   group_by(EVTYPE) %>%
-  summarise(DMG = sum(PROPDMG))
+  summarise(DAMAGE = sum(PROPDMG))
 
 
 econ <- bind_rows(miles, millones) %>%
@@ -185,10 +185,10 @@ econ <- bind_rows(miles, millones) %>%
 #The top 5 of event with major economic consequences in US:
 ```{r econ, echo=FALSE, cache= TRUE}
 
-econ <- arrange(econ,desc(DMG))
+econ <- arrange(econ,desc(DAMAGE))
 econ
 
-ggplot(econ, aes(EVTYPE, DMG)) + 
+ggplot(econ, aes(EVTYPE, DAMAGE)) + 
   ggtitle("Weather events with major economic consequences in US") +
   geom_bar(stat="identity", fill = "#FF6666") +
   xlab("Weather event") + 
